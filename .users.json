@@ -1,0 +1,10 @@
+Copy this file to users.json, and delete this line for a default users store
+{
+  "foo@bar.baz": {
+    "Email": "foo@bar.baz",
+    "Tokens": {
+      "api": "Zm9vQGJhci5iYXo68qTJnD1i0izZxHQn-kZk4iKgUTZoibIX0OnAaBj1yDc="
+    }
+  }
+}
+
