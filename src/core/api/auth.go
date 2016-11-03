@@ -9,7 +9,8 @@ import (
 	"core/infrastructure"
 )
 
-const headerAuthTokenKey = "X-API-TOKEN"
+const headerAuthTokenKey = "Authorization"
+const bearerPrefix = "Bearer "
 
 type authMiddleware struct {
 	path string
@@ -18,7 +19,12 @@ type authMiddleware struct {
 func (m *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	apiKey := r.Header.Get(headerAuthTokenKey)
 	if apiKey == "" {
-		JSONResponse(w, http.StatusUnauthorized, fmt.Sprintf(`"missing authentication header %s"`, headerAuthTokenKey))
+		JSONResponse(w, http.StatusUnauthorized, fmt.Sprintf(`missing authorization header "%s: %s<api token>"`, headerAuthTokenKey, bearerPrefix))
+		return
+	}
+
+	if len(apiKey) <= len(bearerPrefix) || apiKey[:len(bearerPrefix)] != bearerPrefix {
+		JSONResponse(w, http.StatusUnauthorized, fmt.Sprintf(`missing bearer api token in  header "%s: %s<api token>"`, headerAuthTokenKey, bearerPrefix))
 		return
 	}
 
@@ -28,7 +34,7 @@ func (m *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next 
 		return
 	}
 
-	if store.Users().VerifyUser(apiKey) {
+	if store.Users().VerifyUser(apiKey[len(bearerPrefix):]) {
 		next(w, r)
 	} else {
 		JSONResponse(w, http.StatusUnauthorized, "unauthorized")
