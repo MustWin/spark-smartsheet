@@ -1,67 +1,72 @@
 package api
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/urfave/negroni"
 
+	"core/domain"
 	"core/infrastructure"
 )
 
-// RegisterV1UsersRoutes ensures that the routes that handle user
-// related actions are registered
-func RegisterV1UsersRoutes(prefix string, r *mux.Router) {
-	// unauthenticated
+func registerRoutesV1Users(prefix string, r *mux.Router) *mux.Router {
+	// unauthenticated routes
 	r.HandleFunc(prefix+"{email}", registerUserAction).Methods("POST")
 
-	// authenticated
+	// authenticated routes
 	authenticatedRoutes := mux.NewRouter()
-	authenticatedRoutes.HandleFunc(prefix+"", listUsersAction)
+	authenticatedRoutes.HandleFunc(prefix+"", listUsersAction).Methods("GET")
 
 	n := negroni.New(
 		newAuthMiddleware(),
 		negroni.Wrap(authenticatedRoutes))
-
 	r.PathPrefix(prefix).Handler(n)
+
+	return r
 }
+
+/**
+ * actions
+ **/
 
 func listUsersAction(w http.ResponseWriter, r *http.Request) {
 	users, err := listUsers()
 	if err != nil {
 		log.Printf("error listing users: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		JSONResponse(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Write([]byte(fmt.Sprintf(`[\n"%s"\n]`, strings.Join(users, `",\n"`))))
+	JSONResponse(w, http.StatusOK, users)
 }
 
 func registerUserAction(w http.ResponseWriter, r *http.Request) {
 	v := mux.Vars(r)
 	token, err := registerUser(v["email"])
-	if err != nil {
+	switch err {
+	case nil:
+	case domain.ErrorUserExists:
+		JSONResponse(w, http.StatusConflict, "conflict")
+		return
+	default:
 		log.Printf("error registering user: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		JSONResponse(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Write([]byte(fmt.Sprintf(`%q`, token)))
+	JSONResponse(w, http.StatusOK, token)
 }
+
+/**
+ * internal helper functions
+ **/
 
 func listUsers() ([]string, error) {
 	store, err := infrastructure.NewFileUserStore("users.json")
 	if err != nil {
 		return nil, err
 	}
-	users := make([]string, len(store.Users))
-	ix := 0
-	for k, _ := range store.Users {
-		users[ix] = k
-		ix++
-	}
-	return users, nil
+	return store.Users().Emails(), nil
 }
 
 func registerUser(email string) (string, error) {
@@ -69,7 +74,7 @@ func registerUser(email string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	token, err := store.RegisterUser(email)
+	token, err := store.Users().RegisterUser(email)
 	if err != nil {
 		return "", err
 	}

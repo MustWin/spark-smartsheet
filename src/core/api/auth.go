@@ -9,34 +9,31 @@ import (
 	"core/infrastructure"
 )
 
-const APIHeader = "X-API-HEADER"
+const headerAuthTokenKey = "X-API-TOKEN"
 
 type authMiddleware struct {
 	path string
 }
 
 func (m *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	apiKey := r.Header.Get(APIHeader)
+	apiKey := r.Header.Get(headerAuthTokenKey)
 	if apiKey == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(fmt.Sprintf(`"missing authentication header %s"`, APIHeader)))
+		JSONResponse(w, http.StatusUnauthorized, fmt.Sprintf(`"missing authentication header %s"`, headerAuthTokenKey))
 		return
 	}
 
 	store, err := infrastructure.NewFileUserStore(m.path)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		JSONResponse(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
-	if store.Users.VerifyUser(apiKey) {
+	if store.Users().VerifyUser(apiKey) {
 		next(w, r)
 	} else {
-		w.WriteHeader(http.StatusUnauthorized)
+		JSONResponse(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 }
 
-func newAuthMiddleware() negroni.Handler {
-	return &authMiddleware{path: "users.json"}
-}
+func newAuthMiddleware() negroni.Handler { return &authMiddleware{path: "users.json"} }

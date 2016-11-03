@@ -6,27 +6,38 @@ import (
 	"encoding/base64"
 	"errors"
 	"log"
+	"sort"
 )
 
+// Errors relating to User
+var (
+	ErrorUserExists    = errors.New("user exists")
+	ErrorInvalidEmail  = errors.New("invalid email")
+	ErrorInvalidToken  = errors.New("invalid token")
+	ErrorInternalError = errors.New("internal error")
+)
+
+// User encapsulates user specific info
 type User struct {
 	Email  string
 	Tokens map[string]string
 }
 
+// Users is the collection of all users
 type Users map[string]User
 
-// RegisterUser creates a new access token for a given email address.
+// RegisterUser creates a new access token for a given email address
 func (u Users) RegisterUser(email string) (string, error) {
 	if ok := validate(email); !ok {
-		return "", errors.New("invalid email")
+		return "", ErrorInvalidEmail
 	}
 	if _, ok := u[email]; ok {
-		return "", errors.New("user exists")
+		return "", ErrorUserExists
 	}
 	token, err := generateRandomString(email, 32)
 	if err != nil {
 		log.Printf("registering %q; error generating random string: %v", email, err)
-		return "", errors.New("internal error")
+		return "", ErrorInternalError
 	}
 	u[email] = User{Email: email, Tokens: map[string]string{"api": token}}
 	return token, nil
@@ -45,6 +56,16 @@ func (u Users) VerifyUser(token string) bool {
 		}
 	}
 	return false
+}
+
+// Emails returns a list of the emails in the Users map
+func (u Users) Emails() []string {
+	emails := []string{}
+	for email := range u {
+		emails = append(emails, email)
+	}
+	sort.Sort(sort.StringSlice(emails))
+	return emails
 }
 
 func validate(email string) bool {
@@ -77,5 +98,5 @@ func extractPrefix(token string) (string, error) {
 	if ix := bytes.Index(dec, []byte{':'}); ix >= 0 {
 		return string(dec[:ix]), nil
 	}
-	return string(dec), errors.New("invalid token")
+	return string(dec), ErrorInvalidToken
 }

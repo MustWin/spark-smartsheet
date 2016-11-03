@@ -27,9 +27,10 @@ func main() {
 func Main(c *cli.Context) error {
 	port := ":8000"
 
-	router := mux.NewRouter()
-	api.RegisterV1API("/v1/", router)
-	router.HandleFunc("/", rootHandler)
+	router := api.RegisterRoutesV1API("/v1/", mux.NewRouter())
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		api.JSONResponse(w, http.StatusOK, "API at /v1/")
+	}).Methods("GET")
 
 	n := negroni.New(negroni.NewRecovery(), negroni.NewLogger())
 	n.UseHandler(router)
@@ -43,8 +44,4 @@ func Main(c *cli.Context) error {
 
 	log.Printf("listening on port %s", port)
 	return srv.ListenAndServe()
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(`"/v1/ for API"`))
 }

@@ -4,52 +4,61 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"sync"
 
 	"core/domain"
 )
 
-// UserStore marshals the Users data structure to and from a JSON
-// formatted file
-type UserStore struct {
-	domain.Users
-	path string
+type UserStore interface {
+	Load() error
+	Save() error
+	Users() domain.Users
+}
+
+type fileUserStore struct {
+	once  sync.Once
+	path  string
+	users domain.Users
 }
 
 // NewFileUserStore creates a UserStore from the given path
-func NewFileUserStore(path string) (*UserStore, error) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if h, e2 := os.Create(path); e2 != nil {
-			return nil, e2
-		} else {
-			if _, e2 = h.Write([]byte(`{}`)); e2 != nil {
-				return nil, e2
-			}
-			if e2 = h.Close(); e2 != nil {
-				return nil, e2
-			}
-		}
-	} else if err != nil {
-		return nil, err
-	}
-	s := &UserStore{path: path}
+func NewFileUserStore(path string) (UserStore, error) {
+	s := &fileUserStore{path: path, users: domain.Users{}}
 	return s, s.Load()
 
 }
 
-// Load populates the UserStore from the configured filepath
-func (s *UserStore) Save() error {
-	b, err := json.MarshalIndent(s, "", "  ")
+// Save the UserStore to the configured filepath
+func (s *fileUserStore) Save() error {
+	b, err := json.MarshalIndent(s.users, "", "  ")
 	if err != nil {
 		return err
 	}
 	return ioutil.WriteFile(s.path, b, os.ModePerm)
 }
 
-// Save the UserStore to the configured filepath
-func (s *UserStore) Load() error {
+// Load populates the UserStore from the configured filepath
+func (s *fileUserStore) Load() error {
+	s.once.Do(func() { initializeIfNotExists(s.path, "{}") })
 	b, err := ioutil.ReadFile(s.path)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(b, s)
+	return json.Unmarshal(b, &s.users)
+}
+
+// Users return current users
+func (s *fileUserStore) Users() domain.Users { return s.users }
+
+func initializeIfNotExists(path string, contents string) error {
+	var err error
+	if _, err = os.Stat(path); os.IsNotExist(err) {
+		var handle *os.File
+		if handle, err = os.Create(path); err == nil {
+			if _, err = handle.Write([]byte(contents)); err == nil {
+				return handle.Close()
+			}
+		}
+	}
+	return err
 }

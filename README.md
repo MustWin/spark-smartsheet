@@ -39,3 +39,16 @@ $ gb test
 
 That's it!
 
+
+## Sample users.json file
+
+```JSON
+{
+  "foo@bar.baz": {
+    "Email": "foo@bar.baz",
+    "Tokens": {
+      "api": "Zm9vQGJhci5iYXo68qTJnD1i0izZxHQn-kZk4iKgUTZoibIX0OnAaBj1yDc="
+    }
+  }
+}
+```
