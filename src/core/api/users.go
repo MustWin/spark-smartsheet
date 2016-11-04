@@ -18,6 +18,7 @@ func registerRoutesV1Users(prefix string, r *mux.Router) *mux.Router {
 	// authenticated routes
 	authenticatedRoutes := mux.NewRouter()
 	authenticatedRoutes.HandleFunc(prefix+"", listUsersAction).Methods("GET")
+	authenticatedRoutes.NotFoundHandler = NotFoundHandlerJSON()
 
 	n := negroni.New(
 		newAuthMiddleware(),

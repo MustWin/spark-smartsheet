@@ -19,8 +19,9 @@ func RegisterRoutesV1API(prefix string, r *mux.Router) *mux.Router {
 		prefix + "users/": registerRoutesV1Users,
 	}
 
+	router := r
 	for routePrefix, routeFn := range routes {
-		r = routeFn(routePrefix, r)
+		router = routeFn(routePrefix, router)
 	}
 
 	endpoints, err := describeRoutes(r)
@@ -38,10 +39,15 @@ func RegisterRoutesV1API(prefix string, r *mux.Router) *mux.Router {
 	}
 
 	r.HandleFunc(prefix, defaultAction).Methods("GET")
-	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		JSONResponse(w, http.StatusNotFound, "404 not found")
-	})
+	r.NotFoundHandler = NotFoundHandlerJSON()
 	return r
+}
+
+// NotFoundHandlerJSON serializes the not found response as JSON
+func NotFoundHandlerJSON() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		JSONResponse(w, http.StatusNotFound, "404 not found")
+	}
 }
 
 // JSONResponse sends the obj as a response that is JSON encoded

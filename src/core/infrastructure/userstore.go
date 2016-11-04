@@ -15,21 +15,21 @@ type UserStore interface {
 	Users() domain.Users
 }
 
-type fileUserStore struct {
+type FileUserStore struct {
 	once  sync.Once
 	path  string
 	users domain.Users
 }
 
 // NewFileUserStore creates a UserStore from the given path
-func NewFileUserStore(path string) (UserStore, error) {
-	s := &fileUserStore{path: path, users: domain.Users{}}
+func NewFileUserStore(path string) (*FileUserStore, error) {
+	s := &FileUserStore{path: path, users: domain.Users{}}
 	return s, s.Load()
 
 }
 
 // Save the UserStore to the configured filepath
-func (s *fileUserStore) Save() error {
+func (s *FileUserStore) Save() error {
 	b, err := json.MarshalIndent(s.users, "", "  ")
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (s *fileUserStore) Save() error {
 }
 
 // Load populates the UserStore from the configured filepath
-func (s *fileUserStore) Load() error {
+func (s *FileUserStore) Load() error {
 	s.once.Do(func() { initializeIfNotExists(s.path, "{}") })
 	b, err := ioutil.ReadFile(s.path)
 	if err != nil {
@@ -48,7 +48,7 @@ func (s *fileUserStore) Load() error {
 }
 
 // Users return current users
-func (s *fileUserStore) Users() domain.Users { return s.users }
+func (s *FileUserStore) Users() domain.Users { return s.users }
 
 func initializeIfNotExists(path string, contents string) error {
 	var err error

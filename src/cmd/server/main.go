@@ -31,6 +31,7 @@ func Main(c *cli.Context) error {
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		api.JSONResponse(w, http.StatusOK, "API at /v1/")
 	}).Methods("GET")
+	router.NotFoundHandler = api.NotFoundHandlerJSON()
 
 	n := negroni.New(negroni.NewRecovery(), negroni.NewLogger())
 	n.UseHandler(router)
