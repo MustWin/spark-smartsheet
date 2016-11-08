@@ -34,6 +34,34 @@ type RoomResponse struct {
 	Items []Room `json:"items"`
 }
 
+// Hook represents a web hook registration in Spark
+type Hook struct {
+	Name      string `json:"name"`
+	TargetURL string `json:"targetUrl"`
+	Resource  string `json:"resource"`
+	Event     string `json:"event"`
+	Filter    string `json:"filter"`
+	Secret    string `json:"secret"`
+}
+
+// HookRequest encapsulates the request to register a web hook
+type HookRequest struct {
+	Hook
+}
+
+// HookResponse encapsulates the response to registering a web hook
+type HookResponse struct {
+	Hook
+	ID      string    `json:"id"`
+	Created time.Time `json:"created"`
+}
+
+// HooksResponse describes the data coming back from a request to list
+// the web hooks
+type HooksResponse struct {
+	Items []HookResponse `json:"items"`
+}
+
 // ListRooms returns a slice of Room representing all Rooms
 // visible to the logged in user
 func (c *SparkClient) ListRooms() ([]Room, error) {
@@ -44,4 +72,16 @@ func (c *SparkClient) ListRooms() ([]Room, error) {
 	rooms := RoomResponse{}
 	err = json.Unmarshal(body, &rooms)
 	return rooms.Items, err
+}
+
+// ListHooks returns a slice of HookResponse describing all
+// registered web hooks
+func (c *SparkClient) ListHooks() ([]HookResponse, error) {
+	body, err := c.GetResource(sparkBase + "webhooks")
+	if err != nil {
+		return nil, err
+	}
+	hooks := HooksResponse{}
+	err = json.Unmarshal(body, &hooks)
+	return hooks.Items, err
 }

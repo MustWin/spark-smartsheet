@@ -17,6 +17,7 @@ func RegisterRoutesV1API(prefix string, r *mux.Router) *mux.Router {
 	// v1 routes
 	routes := map[string]registerRouteFn{
 		prefix + "users/": registerRoutesV1Users,
+		prefix + "hooks/": registerRoutesV1Hooks,
 	}
 
 	router := r
