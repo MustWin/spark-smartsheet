@@ -66,12 +66,12 @@ type HooksResponse struct {
 
 // Message represents a Spark message
 type Message struct {
-	RoomID        string   `json:"roomId"`
-	ToPersonID    string   `json:"toPersonId"`
-	ToPersonEmail string   `json:"toPersonEmail"`
-	Text          string   `json:"text"`
-	Markdown      string   `json:"markdown"`
-	Files         []string `json:"files"`
+	RoomID        string   `json:"roomId,omitempty"`
+	ToPersonID    string   `json:"toPersonId,omitempty"`
+	ToPersonEmail string   `json:"toPersonEmail,omitempty"`
+	Text          string   `json:"text,omitempty"`
+	Markdown      string   `json:"markdown,omitempty"`
+	Files         []string `json:"files,omitempty"`
 }
 
 // MessageResponse describes the full Message including ID
@@ -119,19 +119,10 @@ func (c *SparkClient) ListMessages(roomName string) ([]MessageResponse, error) {
 	if roomName == "" {
 		return nil, fmt.Errorf("no room specified")
 	}
-	id := ""
-	rooms, err := c.ListRooms()
+
+	id, err := c.getRoomId(roomName)
 	if err != nil {
 		return nil, err
-	}
-	for _, room := range rooms {
-		if room.Title == roomName {
-			id = room.ID
-			break
-		}
-	}
-	if id == "" {
-		return nil, fmt.Errorf("room %q not found", roomName)
 	}
 
 	body, err := c.GetResource(sparkBase + "messages?roomId=" + id)
@@ -150,22 +141,28 @@ func (c *SparkClient) CreateHook(name string, callbackURL string, roomName strin
 	res := HookResponse{}
 
 	if roomName != "" {
-		req.Filter = ""
-		rooms, err := c.ListRooms()
+		id, err := c.getRoomId(roomName)
 		if err != nil {
 			return res, err
 		}
-		for _, room := range rooms {
-			if room.Title == roomName {
-				req.Filter = "roomId=" + room.ID
-				break
-			}
-		}
-		if req.Filter == "" {
-			return res, fmt.Errorf("room named %q not found", roomName)
-		}
+		req.Filter = "roomId=" + id
 	}
 	body, err := c.PostResource(sparkBase+"webhooks", req)
+	if err != nil {
+		return res, err
+	}
+	err = json.Unmarshal(body, &res)
+	return res, err
+}
+
+// CreateMessage adds a new message to the indicated room
+func (c *SparkClient) CreateMessage(room string, text string) (MessageResponse, error) {
+	res := MessageResponse{}
+	id, err := c.getRoomId(room)
+	if err != nil {
+		return res, err
+	}
+	body, err := c.PostResource(sparkBase+"messages", Message{RoomID: id, Text: text})
 	if err != nil {
 		return res, err
 	}
@@ -191,6 +188,19 @@ func (c *SparkClient) DeleteHook(name string) error {
 	}
 	_, err = c.DeleteResource(sparkBase + "webhooks/" + id)
 	return err
+}
+
+func (c *SparkClient) getRoomId(roomName string) (string, error) {
+	rooms, err := c.ListRooms()
+	if err != nil {
+		return "", err
+	}
+	for _, room := range rooms {
+		if room.Title == roomName {
+			return room.ID, nil
+		}
+	}
+	return "", fmt.Errorf("could not find room %q", roomName)
 }
 
 type byCreated []MessageResponse
