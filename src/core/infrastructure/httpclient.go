@@ -1,6 +1,10 @@
 package infrastructure
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -26,8 +30,11 @@ func NewRESTClient(apiKey string) *RESTClient {
 // to make RESTful interaction a little easier
 type RESTClient struct {
 	*http.Client
-	APIKey        string
-	GetResourceFn func(string) ([]byte, error)
+	APIKey           string
+	GetResourceFn    func(string) ([]byte, error)
+	PostResourceFn   func(string, interface{}) ([]byte, error)
+	DeleteResourceFn func(string) ([]byte, error)
+	Trace            bool
 }
 
 // GetResource returns raw byte slice from a REST API endpoint
@@ -38,20 +45,59 @@ func (r *RESTClient) GetResource(url string) ([]byte, error) {
 	return r.get(url)
 }
 
+// PostResource sends a POST request, and returns the raw response
+func (r *RESTClient) PostResource(url string, body interface{}) ([]byte, error) {
+	if r.DeleteResourceFn != nil {
+		return r.PostResourceFn(url, body)
+	}
+	return r.post(url, body)
+}
+
+// DeleteResource sends a DELETE request, and returns the raw response
+func (r *RESTClient) DeleteResource(url string) ([]byte, error) {
+	if r.DeleteResourceFn != nil {
+		return r.DeleteResourceFn(url)
+	}
+	return r.delete(url)
+}
+
 func (r *RESTClient) get(url string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	return r.send("GET", url, nil)
+}
+
+func (r *RESTClient) post(url string, body interface{}) ([]byte, error) {
+	data, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	return r.send("POST", url, bytes.NewBuffer(data))
+}
+
+func (r *RESTClient) delete(url string) ([]byte, error) {
+	return r.send("DELETE", url, nil)
+}
+
+func (r *RESTClient) send(method string, url string, bodySource io.Reader) ([]byte, error) {
+	req, err := http.NewRequest(method, url, bodySource)
 	if err != nil {
 		return nil, err
 	}
 	if r.APIKey != "" {
 		req.Header["Authorization"] = []string{"Bearer " + r.APIKey}
 	}
-	r.debug("REQUEST")(httputil.DumpRequestOut(req, true))
+	if bodySource != nil {
+		req.Header["Content-Type"] = []string{"application/json;charset=utf8"}
+	}
+	if r.Trace {
+		r.debug("REQUEST")(httputil.DumpRequestOut(req, true))
+	}
 	res, err := r.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	r.debug("RESPONSE")(httputil.DumpResponse(res, true))
+	if r.Trace {
+		r.debug("RESPONSE")(httputil.DumpResponse(res, true))
+	}
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -60,7 +106,12 @@ func (r *RESTClient) get(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return body, nil
+	switch res.StatusCode {
+	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent:
+		return body, nil
+	default:
+		return body, fmt.Errorf(http.StatusText(res.StatusCode))
+	}
 }
 
 func (r *RESTClient) debug(label string) func([]byte, error) {

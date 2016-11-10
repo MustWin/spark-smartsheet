@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -84,4 +85,53 @@ func (c *SparkClient) ListHooks() ([]HookResponse, error) {
 	hooks := HooksResponse{}
 	err = json.Unmarshal(body, &hooks)
 	return hooks.Items, err
+}
+
+// CreateHook creates a new webhook, filtered by an optional room name
+func (c *SparkClient) CreateHook(name string, callbackURL string, roomName string) (HookResponse, error) {
+	req := Hook{Name: name, TargetURL: callbackURL, Resource: "messages", Event: "created", Filter: "roomType=group", Secret: "s3cr37"}
+	res := HookResponse{}
+
+	if roomName != "" {
+		req.Filter = ""
+		rooms, err := c.ListRooms()
+		if err != nil {
+			return res, err
+		}
+		for _, room := range rooms {
+			if room.Title == roomName {
+				req.Filter = "roomId=" + room.ID
+				break
+			}
+		}
+		if req.Filter == "" {
+			return res, fmt.Errorf("room named %q not found", roomName)
+		}
+	}
+	body, err := c.PostResource(sparkBase+"webhooks", req)
+	if err != nil {
+		return res, err
+	}
+	err = json.Unmarshal(body, &res)
+	return res, err
+}
+
+// DeleteHook removes a registered hook
+func (c *SparkClient) DeleteHook(name string) error {
+	hooks, err := c.ListHooks()
+	if err != nil {
+		return err
+	}
+	id := ""
+	for _, hook := range hooks {
+		if hook.Name == name {
+			id = hook.ID
+			break
+		}
+	}
+	if id == "" {
+		return fmt.Errorf("no matching webhook found")
+	}
+	_, err = c.DeleteResource(sparkBase + "webhooks/" + id)
+	return err
 }
