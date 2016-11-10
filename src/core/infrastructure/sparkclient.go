@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -63,6 +64,32 @@ type HooksResponse struct {
 	Items []HookResponse `json:"items"`
 }
 
+// Message represents a Spark message
+type Message struct {
+	RoomID        string   `json:"roomId"`
+	ToPersonID    string   `json:"toPersonId"`
+	ToPersonEmail string   `json:"toPersonEmail"`
+	Text          string   `json:"text"`
+	Markdown      string   `json:"markdown"`
+	Files         []string `json:"files"`
+}
+
+// MessageResponse describes the full Message including ID
+type MessageResponse struct {
+	Message
+	ID          string    `json:"id"`
+	RoomType    string    `json:"roomType"`
+	PersonID    string    `json:"personId"`
+	PersonEmail string    `json:"personEmail"`
+	Created     time.Time `json:"created"`
+	Mentioned   []string  `json:"mentionedPeople"`
+}
+
+// MessagesResponse describes a response including a list of Messages
+type MessagesResponse struct {
+	Items []MessageResponse `json:"items"`
+}
+
 // ListRooms returns a slice of Room representing all Rooms
 // visible to the logged in user
 func (c *SparkClient) ListRooms() ([]Room, error) {
@@ -85,6 +112,36 @@ func (c *SparkClient) ListHooks() ([]HookResponse, error) {
 	hooks := HooksResponse{}
 	err = json.Unmarshal(body, &hooks)
 	return hooks.Items, err
+}
+
+// ListMessages returns a slice of Message representing messages
+func (c *SparkClient) ListMessages(roomName string) ([]MessageResponse, error) {
+	if roomName == "" {
+		return nil, fmt.Errorf("no room specified")
+	}
+	id := ""
+	rooms, err := c.ListRooms()
+	if err != nil {
+		return nil, err
+	}
+	for _, room := range rooms {
+		if room.Title == roomName {
+			id = room.ID
+			break
+		}
+	}
+	if id == "" {
+		return nil, fmt.Errorf("room %q not found", roomName)
+	}
+
+	body, err := c.GetResource(sparkBase + "messages?roomId=" + id)
+	if err != nil {
+		return nil, err
+	}
+	messages := MessagesResponse{}
+	err = json.Unmarshal(body, &messages)
+	sort.Sort(byCreated(messages.Items))
+	return messages.Items, err
 }
 
 // CreateHook creates a new webhook, filtered by an optional room name
@@ -135,3 +192,9 @@ func (c *SparkClient) DeleteHook(name string) error {
 	_, err = c.DeleteResource(sparkBase + "webhooks/" + id)
 	return err
 }
+
+type byCreated []MessageResponse
+
+func (b byCreated) Len() int           { return len(b) }
+func (b byCreated) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b byCreated) Less(i, j int) bool { return b[i].Created.Before(b[j].Created) }

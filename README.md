@@ -23,10 +23,12 @@ This tool expects that the Spark API Token is either passed in via the `-apitoke
  * `bin/spark hook list` lists the hooks registered by the user
  * `bin/spark hook add` registers a new callback hook, for when messages are posted to Spark
  * `bin/spark hook delete` will de-register a callback hook
+ * `bin/spark messages list` will list messages in a given room
  * TBD...
 
 ### Smartsheet CLI
 
+TBD...
 
 ## Build and Execute
 
