@@ -7,10 +7,12 @@ import (
 )
 
 func registerRoutesV1Hooks(prefix string, r *mux.Router) *mux.Router {
-	r.HandleFunc(prefix+"{email}", defaultHookAction).Methods("POST")
+	r.HandleFunc(prefix+"spark/{email}", sparkCallbackAction).Methods("POST")
 	return r
 }
 
-func defaultHookAction(w http.ResponseWriter, r *http.Request) {
-	JSONResponse(w, http.StatusOK, "ok")
+func sparkCallbackAction(w http.ResponseWriter, r *http.Request) {
+	v := mux.Vars(r)
+
+	JSONResponse(w, http.StatusOK, "ok "+v["email"])
 }
