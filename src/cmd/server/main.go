@@ -33,7 +33,7 @@ func Main(c *cli.Context) error {
 	}).Methods("GET")
 	router.NotFoundHandler = api.NotFoundHandlerJSON()
 
-	n := negroni.New(negroni.NewRecovery(), negroni.NewLogger(), api.NewTraceMiddleware(true))
+	n := negroni.New(negroni.NewRecovery(), negroni.NewLogger(), negroni.NewStatic(http.Dir("public")), api.NewTraceMiddleware(true))
 	n.UseHandler(router)
 
 	srv := http.Server{
