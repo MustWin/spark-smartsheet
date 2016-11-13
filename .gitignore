@@ -26,5 +26,11 @@ _testmain.go
 bin/
 pkg/
 
+node_modules/
+npm-debug.log
+
 *.json
+*.min.js
+
 .idea/
+example_payloads/

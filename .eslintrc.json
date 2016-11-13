@@ -1,0 +1,30 @@
+{
+  "env": {
+    "node": false,
+    "browser": true,
+    "jquery": false
+  },
+  "plugins": [
+    "react"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "standard-jsx"
+  ],
+  "rules": {
+    "quotes": [
+      "error",
+      "double"
+    ],
+    "comma-dangle": [
+      "error",
+      "never"
+    ],
+    "no-console": "off"
+  },
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  }
+}
